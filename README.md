@@ -15,7 +15,7 @@ Install dependencies
 yarn
 ```
 
-Run de project
+Run the project
 ```bash
 yarn dev # For develop
 yarn start # For production
