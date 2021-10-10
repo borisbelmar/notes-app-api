@@ -1,4 +1,4 @@
-# Sample Task API
+# Sample Notes API
 
 Simple REST API for teach Client/Server architecture with rest api service made in JS ES2020 and NodeJS 14+.
 
