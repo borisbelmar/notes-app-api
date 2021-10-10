@@ -1,11 +1,13 @@
 import Router from '@koa/router'
 import usersRouter from './users.js'
 import notesRouter from './notes.js'
+import authRouter from './auth.js'
 import authRequired from '../middlewares/authRequired.js'
 
 const router = new Router()
 
-router.use('/users', usersRouter.routes())
-router.use('/notes', authRequired, notesRouter.routes())
+router.use('/v1/users', usersRouter.routes())
+router.use('/v1/notes', authRequired, notesRouter.routes())
+router.use('/v1/auth', authRouter.routes())
 
 export default router

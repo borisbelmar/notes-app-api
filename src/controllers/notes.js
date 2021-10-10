@@ -2,13 +2,32 @@ import mongoose from 'mongoose'
 import * as yup from 'yup'
 import ServerError from '../errors/ServerError.js'
 import Note from '../models/Note.js'
+import {
+  getPagination,
+  getQueryFilter,
+  getSort,
+  setCounts
+} from '../utils/index.js'
 
 const { ObjectId } = mongoose.Types
 
 const getNotesControllers = () => {
   const getAll = async ctx => {
     const { userSession } = ctx.state
-    const notes = await Note.find({ user: userSession.sub })
+    const { limit, skip } = getPagination(ctx)
+    const sort = getSort(ctx)
+    const queryFilter = getQueryFilter(ctx, ['title', 'body'])
+
+    const findFilters = { ...queryFilter, user: userSession.sub }
+
+    const notes = await Note
+      .find(findFilters)
+      .sort({ [sort.by]: sort.dir })
+      .limit(limit)
+      .skip(skip)
+
+    const totalCount = await Note.count(findFilters)
+    setCounts(ctx, totalCount, limit)
     ctx.body = notes
     ctx.status = 200
   }

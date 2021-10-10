@@ -2,22 +2,57 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import * as yup from 'yup'
 import User from '../models/User.js'
-import { jwtSign } from '../lib/jwt.js'
 import ServerError from '../errors/ServerError.js'
+import scopeChecker from '../lib/scopeChecker.js'
+import {
+  getPagination,
+  getQueryFilter,
+  getSort,
+  setCounts
+} from '../utils/index.js'
 
 const { ObjectId } = mongoose.Types
 
+const scopesValidate = val => val?.every(item => {
+  try {
+    const splitted = item.split(':')
+    return splitted.length === 2
+  } catch {
+    return false
+  }
+})
+
 const getUsersControllers = () => {
   const getAll = async ctx => {
-    const users = await User.find()
+    const { limit, skip } = getPagination(ctx)
+    const sort = getSort(ctx)
+    const queryFilter = getQueryFilter(ctx, ['firstName', 'lastName', 'email'])
+
+    const findFilters = { ...queryFilter }
+
+    const users = await User
+      .find(findFilters)
+      .sort({ [sort.by]: sort.dir })
+      .limit(limit)
+      .skip(skip)
+
+    const totalCount = await User.count(findFilters)
+    setCounts(ctx, totalCount, limit)
     ctx.body = users
   }
 
   const getById = async ctx => {
+    const { userSession } = ctx.state
+
     const { id } = ctx.request.params
     if (!ObjectId.isValid(id)) {
       throw new ServerError(404)
     }
+
+    if (id !== userSession.sub) {
+      scopeChecker('users:read')
+    }
+
     const user = await User.findById(id)
     if (!user) {
       throw new ServerError(404)
@@ -27,7 +62,7 @@ const getUsersControllers = () => {
     }
   }
 
-  const register = async ctx => {
+  const create = async ctx => {
     const payload = ctx.request.body
 
     const yupSchema = yup.object().shape({
@@ -35,6 +70,11 @@ const getUsersControllers = () => {
       lastName: yup.string().required(),
       email: yup.string().email().required(),
       password: yup.string().min(6).required(),
+      scopes: yup.array().test({
+        name: 'scopes',
+        message: 'Scopes malformed',
+        test: scopesValidate
+      })
     })
 
     try {
@@ -60,48 +100,30 @@ const getUsersControllers = () => {
     }
   }
 
-  const login = async ctx => {
-    const payload = ctx.request.body
-
-    const yupSchema = yup.object().shape({
-      email: yup.string().email().required(),
-      password: yup.string().min(6).required(),
-    })
-
-    if (!yupSchema.isValidSync(payload)) {
-      throw new ServerError(401)
-    }
-
-    const user = await User.findOne({ email: payload.email })
-
-    if (!user || !bcrypt.compareSync(payload.password, user.password)) {
-      throw new ServerError(401)
-    }
-
-    const accessToken = jwtSign({
-      sub: user._id,
-      cid: user._id,
-      scopes: user.scopes
-    })
-
-    ctx.body = {
-      accessToken
-    }
-    ctx.status = 200
-  }
-
   const updateById = async ctx => {
+    const { userSession } = ctx.state
+
     const { id } = ctx.request.params
     if (!ObjectId.isValid(id)) {
       throw new ServerError(404)
     }
+
+    if (id !== userSession.sub) {
+      scopeChecker('users:write')
+    }
+
     const payload = ctx.request.body
 
     const yupSchema = yup.object().shape({
       firstName: yup.string(),
       lastName: yup.string(),
       email: yup.string().email(),
-      password: yup.string().min(6)
+      password: yup.string().min(6),
+      scopes: yup.array().test({
+        name: 'scopes',
+        message: 'Scopes malformed',
+        test: scopesValidate
+      })
     })
 
     try {
@@ -133,8 +155,7 @@ const getUsersControllers = () => {
   return {
     getAll,
     getById,
-    register,
-    login,
+    create,
     updateById,
     deleteById,
   }
