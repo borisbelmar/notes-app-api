@@ -55,6 +55,7 @@ const getNotesControllers = () => {
     const yupSchema = yup.object().shape({
       title: yup.string().min(3).required(),
       body: yup.string(),
+      color: yup.string().matches(/^#([0-9A-F]{3}){1,2}$/i),
       user: yup.string().test({ name: 'ObjectId', message: 'Invalid ObjectId', test: val => ObjectId.isValid(val) })
     })
 
@@ -84,6 +85,19 @@ const getNotesControllers = () => {
     }
     const { userSession } = ctx.state
     const payload = ctx.request.body
+
+    const yupSchema = yup.object().shape({
+      title: yup.string().min(3),
+      body: yup.string(),
+      color: yup.string().matches(/^#([0-9A-F]{3}){1,2}$/i),
+    })
+
+    try {
+      yupSchema.validateSync(payload)
+    } catch (e) {
+      throw new ServerError(400, e.message)
+    }
+
     if (payload.user) {
       throw new ServerError(400, 'User cant be updated')
     }

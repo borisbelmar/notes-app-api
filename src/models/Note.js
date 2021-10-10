@@ -10,6 +10,10 @@ const NoteSchema = new mongoose.Schema({
   body: {
     type: String,
   },
+  color: {
+    type: String,
+    default: '#FEF3C7'
+  },
   user: {
     type: ObjectId,
     ref: 'User',

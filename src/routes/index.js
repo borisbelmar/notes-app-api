@@ -10,4 +10,11 @@ router.use('/v1/users', usersRouter.routes())
 router.use('/v1/notes', authRequired, notesRouter.routes())
 router.use('/v1/auth', authRouter.routes())
 
+router.get('/', ctx => {
+  ctx.body = {
+    app: process.env.npm_package_name,
+    version: process.env.npm_package_version
+  }
+})
+
 export default router
